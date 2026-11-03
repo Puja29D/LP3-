@@ -1,0 +1,341 @@
+# 0/1 Knapsack Problem using Dynamic Programming
+
+def knapsack(w, p, cap):
+    n = len(w)
+    dp = [[0] * (cap + 1) for _ in range(n + 1)]
+
+    for i in range(1, n + 1):
+        for c in range(cap + 1):
+            dp[i][c] = dp[i-1][c]
+
+            if w[i-1] <= c:
+                dp[i][c] = max(
+                    dp[i][c],
+                    p[i-1] + dp[i-1][c-w[i-1]]
+                )
+
+    print("Maximum profit:", dp[n][cap])
+
+
+# Input
+n = int(input("Enter number of items: "))
+
+w = []
+p = []
+
+for i in range(n):
+    weight = int(input(f"Enter weight of item {i+1}: "))
+    profit = int(input(f"Enter profit of item {i+1}: "))
+    w.append(weight)
+    p.append(profit)
+
+cap = int(input("Enter knapsack capacity: "))
+
+knapsack(w, p, cap)
+
+
+# Expected Input:
+# Enter number of items: 3
+# Enter weight of item 1: 10
+# Enter profit of item 1: 60
+# Enter weight of item 2: 20
+# Enter profit of item 2: 100
+# Enter weight of item 3: 30
+# Enter profit of item 3: 120
+# Enter knapsack capacity: 50
+
+# Expected Output:
+# Maximum profit: 220
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+knapsack 0/1 in python explain me code
+Let's understand 0/1 Knapsack using Dynamic Programming in Python step by step, with a simple program and example.
+
+1. What is 0/1 Knapsack?
+Imagine you have a bag with a maximum capacity of 5 kg and 3 items.
+
+Each item has:
+
+Weight
+
+Profit (Value)
+
+Your goal is to select items so that you get maximum profit without exceeding the bag capacity.
+
+Why 0/1?
+
+1 = Take the complete item.
+
+0 = Don't take the item.
+
+We cannot take half of an item.
+
+2. Python program
+def knapsack(W, wt, val, n):
+
+    dp = [[0 for i in range(W + 1)] for j in range(n + 1)]
+
+    for i in range(1, n + 1):
+        for w in range(1, W + 1):
+
+            if wt[i-1] <= w:
+                dp[i][w] = max(
+                    val[i-1] + dp[i-1][w-wt[i-1]],
+                    dp[i-1][w]
+                )
+            else:
+                dp[i][w] = dp[i-1][w]
+
+    return dp[n][W]
+
+
+n = int(input("Enter number of items: "))
+
+val = []
+wt = []
+
+for i in range(n):
+    val.append(int(input("Enter profit: ")))
+    wt.append(int(input("Enter weight: ")))
+
+W = int(input("Enter bag capacity: "))
+
+print("Maximum profit:", knapsack(W, wt, val, n))
+
+3. Example with input
+Let's take 3 items.
+
+Item
+
+Weight
+
+Profit
+
+1
+
+2
+
+12
+
+2
+
+3
+
+20
+
+3
+
+4
+
+25
+
+Bag capacity = 5 kg.
+
+Input:
+
+Enter number of items: 3
+Enter profit: 12
+Enter weight: 2
+Enter profit: 20
+Enter weight: 3
+Enter profit: 25
+Enter weight: 4
+Enter bag capacity: 5
+Output:
+
+Maximum profit: 32
+Why 32?
+
+Item 1: Weight 2, Profit 12
+
+Item 2: Weight 3, Profit 20
+
+Total weight = 2 + 3 = 5
+
+Total profit = 12 + 20 = 32
+
+So, maximum profit = 32.
+
+4. Understand the important code
+Step 1: Create DP table
+
+dp = [[0 for i in range(W + 1)] for j in range(n + 1)]
+
+dp stores the maximum profit.
+
+Rows represent items.
+
+Columns represent bag capacity.
+
+Initially, all values are 0.
+
+Step 2: Check every item and capacity
+
+for i in range(1, n + 1):
+    for w in range(1, W + 1):
+
+i represents the current item.
+
+w represents the current bag capacity.
+
+Step 3: Check whether item fits
+
+if wt[i-1] <= w:
+
+If the item's weight is less than or equal to the available capacity, we have two choices.
+
+Choice 1: Include the item
+
+val[i-1] + dp[i-1][w-wt[i-1]]
+
+Profit of current item + maximum profit from remaining capacity.
+
+Choice 2: Exclude the item
+
+dp[i-1][w]
+
+Maximum profit without taking the current item.
+
+Step 4: Select maximum profit
+
+dp[i][w] = max(
+    val[i-1] + dp[i-1][w-wt[i-1]],
+    dp[i-1][w]
+)
+
+We choose whichever gives higher profit.
+
+Step 5: If item does not fit
+
+else:
+    dp[i][w] = dp[i-1][w]
+
+We cannot take that item, so we copy the previous maximum profit.
+
+Step 6: Return answer
+
+return dp[n][W]
+
+Returns the maximum profit for all items and full bag capacity.
+
+5. Time and Space Complexity
+Complexity
+
+Answer
+
+Reason
+
+Time
+
+O(n × W)
+
+Two nested loops
+
+Space
+
+O(n × W)
+
+DP table stores n × W values
+
+Where:
+
+n = Number of items
+
+W = Maximum bag capacity
+
+6. Viva questions and answers
+Q1. What is the 0/1 Knapsack problem?
+
+It is an optimization problem where we select items to maximize profit without exceeding the bag capacity.
+
+Q2. Why is it called 0/1 Knapsack?
+
+Because each item can either be selected (1) or rejected (0). We cannot select a fraction of an item.
+
+Q3. Which technique is used?
+
+Dynamic Programming.
+
+Q4. What is Dynamic Programming?
+
+It solves a problem by breaking it into smaller overlapping subproblems and storing their results to avoid repeated calculations.
+
+Q5. What is a DP table?
+
+It stores the maximum profit for different items and bag capacities.
+
+Q6. What is the time complexity?
+
+O(n × W).
+
+Q7. Can we take half an item?
+
+No, fractional selection is not allowed.
+
+Q8. Difference between 0/1 and Fractional Knapsack?
+
+0/1 Knapsack
+
+Fractional Knapsack
+
+Cannot divide items
+
+Can divide items
+
+Uses Dynamic Programming
+
+Uses Greedy
+
+Takes full item or nothing
+
+Takes partial or full item
+
+Remember for practical exam
+The most important logic to remember is:
+
+dp[i][w] = max(
+    val[i-1] + dp[i-1][w-wt[i-1]],
+    dp[i-1][w]
+)
+
+It compares including the item vs excluding the item and stores the maximum profit.
+
+
+
+
