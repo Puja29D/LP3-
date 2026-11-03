@@ -1,0 +1,105 @@
+# Gradient Descent Algorithm
+# Function: y = (x + 3)^2
+
+def function(x):
+    return (x + 3) ** 2
+
+def derivative(x):
+    return 2 * (x + 3)
+
+# Starting point
+x = 2
+
+# Learning rate
+learning_rate = 0.1
+
+# Number of iterations
+iterations = 100
+
+print("Gradient Descent")
+print("----------------")
+
+for i in range(iterations):
+    gradient = derivative(x)
+
+    # Gradient Descent formula
+    x = x - learning_rate * gradient
+
+    print(f"Iteration {i + 1}: x = {x:.6f}, y = {function(x):.6f}")
+
+print("\nLocal Minimum:")
+print(f"x = {x:.6f}")
+print(f"y = {function(x):.6f}")
+
+
+
+
+
+
+
+
+
+
+Q1. What is Gradient Descent?
+
+Ans: Gradient Descent is an optimization algorithm used to find the minimum value of a function.
+
+Q2. Why do we use Gradient Descent?
+
+Ans: To minimize the cost or error function in machine learning.
+
+Q3. What is a gradient?
+
+Ans: Gradient is the derivative of a function that tells us the direction and rate of change.
+
+Q4. What is the learning rate?
+
+Ans: Learning rate controls how big a step the algorithm takes towards the minimum.
+
+Q5. What happens if the learning rate is too high?
+
+Ans: The algorithm may overshoot the minimum and fail to converge.
+
+Q6. What happens if the learning rate is too low?
+
+Ans: The algorithm takes more time to reach the minimum.
+
+Q7. What is an iteration?
+
+Ans: One complete update of the value of x is called an iteration.
+
+Q8. What is the derivative of the given function?
+
+Ans:
+\[
+\frac{dy}{dx}=2(x+3)
+\]
+
+Q9. What is the starting point in this practical?
+
+Ans: x = 2.
+
+Q10. What is the learning rate used?
+
+Ans: 0.1.
+
+Q11. What is the minimum point of this function?
+
+Ans: x = -3 and y = 0.
+
+Q12. Why do we subtract the gradient?
+
+Ans: Because we want to move in the direction of decreasing function value.
+
+Q13. What is the difference between local and global minimum?
+
+Ans:
+- Local minimum: Lowest value in a nearby region.
+- Global minimum: Lowest value over the entire function domain.
+Q14. Where is Gradient Descent used?
+
+Ans: Linear regression, logistic regression, and neural networks.
+
+Q15. What is the role of iterations?
+
+Ans: Iterations repeatedly update x to move closer to the minimum.

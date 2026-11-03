@@ -1,0 +1,684 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+
+
+# 1. LOAD DATASET
+
+df = pd.read_csv("uber.csv")
+
+print("Original Shape:", df.shape)
+print(df.head())
+
+
+# 2. PREPROCESSING
+
+# Remove unnecessary columns
+df.drop(["Unnamed: 0", "key"], axis=1, inplace=True)
+
+# Remove missing values
+df.dropna(inplace=True)
+
+# Convert datetime
+df["pickup_datetime"] = pd.to_datetime(df["pickup_datetime"])
+
+# Extract date/time features
+df["year"] = df["pickup_datetime"].dt.year
+df["month"] = df["pickup_datetime"].dt.month
+df["day"] = df["pickup_datetime"].dt.day
+df["hour"] = df["pickup_datetime"].dt.hour
+df["day_of_week"] = df["pickup_datetime"].dt.dayofweek
+
+# Remove original datetime
+df.drop("pickup_datetime", axis=1, inplace=True)
+
+
+
+# 3. REMOVE INVALID VALUES
+
+df = df[
+    (df["pickup_longitude"] >= -74.3) &
+    (df["pickup_longitude"] <= -73.7) &
+    (df["dropoff_longitude"] >= -74.3) &
+    (df["dropoff_longitude"] <= -73.7) &
+    (df["pickup_latitude"] >= 40.4) &
+    (df["pickup_latitude"] <= 41.0) &
+    (df["dropoff_latitude"] >= 40.4) &
+    (df["dropoff_latitude"] <= 41.0)
+]
+
+df = df[
+    (df["fare_amount"] > 0) &
+    (df["passenger_count"] > 0) &
+    (df["passenger_count"] <= 6)
+]
+
+
+# 4. CALCULATE DISTANCE
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+
+    R = 6371
+
+    lat1 = np.radians(lat1)
+    lon1 = np.radians(lon1)
+
+    lat2 = np.radians(lat2)
+    lon2 = np.radians(lon2)
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = (
+        np.sin(dlat / 2) ** 2
+        + np.cos(lat1)
+        * np.cos(lat2)
+        * np.sin(dlon / 2) ** 2
+    )
+
+    c = 2 * np.arcsin(np.sqrt(a))
+
+    return R * c
+
+
+df["distance_km"] = haversine_distance(
+    df["pickup_latitude"],
+    df["pickup_longitude"],
+    df["dropoff_latitude"],
+    df["dropoff_longitude"]
+)
+
+# 5. OUTLIER REMOVAL
+
+def remove_outliers_iqr(data, column):
+
+    Q1 = data[column].quantile(0.25)
+    Q3 = data[column].quantile(0.75)
+
+    IQR = Q3 - Q1
+
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+
+    return data[
+        (data[column] >= lower) &
+        (data[column] <= upper)
+    ]
+
+
+df = remove_outliers_iqr(df, "fare_amount")
+df = remove_outliers_iqr(df, "distance_km")
+
+
+print("\nShape after preprocessing:", df.shape)
+
+
+# 6. CORRELATION
+
+plt.figure(figsize=(12, 8))
+
+sns.heatmap(
+    df.corr(),
+    annot=True,
+    cmap="coolwarm",
+    fmt=".2f"
+)
+
+plt.title("Correlation Matrix")
+plt.show()
+
+
+# 7. FEATURES AND TARGET
+
+features = [
+    "pickup_longitude",
+    "pickup_latitude",
+    "dropoff_longitude",
+    "dropoff_latitude",
+    "passenger_count",
+    "year",
+    "month",
+    "day",
+    "hour",
+    "day_of_week",
+    "distance_km"
+]
+
+X = df[features]
+y = df["fare_amount"]
+
+# 8. TRAIN TEST SPLIT
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42
+)
+
+
+# 9. LINEAR REGRESSION
+
+linear_model = LinearRegression()
+
+linear_model.fit(X_train, y_train)
+
+y_pred_linear = linear_model.predict(X_test)
+
+
+linear_r2 = r2_score(
+    y_test,
+    y_pred_linear
+)
+
+linear_rmse = np.sqrt(
+    mean_squared_error(
+        y_test,
+        y_pred_linear
+    )
+)
+
+linear_mae = mean_absolute_error(
+    y_test,
+    y_pred_linear
+)
+
+
+# 10. RANDOM FOREST
+
+rf_model = RandomForestRegressor(
+    n_estimators=100,
+    random_state=42,
+    n_jobs=-1
+)
+
+rf_model.fit(X_train, y_train)
+
+y_pred_rf = rf_model.predict(X_test)
+
+
+rf_r2 = r2_score(
+    y_test,
+    y_pred_rf
+)
+
+rf_rmse = np.sqrt(
+    mean_squared_error(
+        y_test,
+        y_pred_rf
+    )
+)
+
+rf_mae = mean_absolute_error(
+    y_test,
+    y_pred_rf
+)
+# 11. MODEL COMPARISON
+
+results = pd.DataFrame({
+
+    "Model": [
+        "Linear Regression",
+        "Random Forest Regression"
+    ],
+
+    "R2 Score": [
+        linear_r2,
+        rf_r2
+    ],
+
+    "RMSE": [
+        linear_rmse,
+        rf_rmse
+    ],
+
+    "MAE": [
+        linear_mae,
+        rf_mae
+    ]
+})
+
+
+print("\n================ MODEL COMPARISON ================")
+print(results)
+
+
+# 12. FEATURE IMPORTANCE
+
+importance = pd.DataFrame({
+
+    "Feature": X.columns,
+
+    "Importance":
+        rf_model.feature_importances_
+})
+
+importance = importance.sort_values(
+    by="Importance",
+    ascending=False
+)
+
+print("\nRandom Forest Feature Importance:")
+print(importance)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+. What is the aim of your experiment?
+
+The aim is to predict the price of an Uber ride based on pickup location, drop-off location, passenger count and date-time information using Machine Learning regression algorithms.
+
+2. What is Uber Fare Prediction?
+
+Uber Fare Prediction is a Machine Learning application that estimates the cost of a ride based on factors such as distance, location, time and number of passengers.
+
+3. Which type of Machine Learning is used in this project?
+
+Supervised Machine Learning is used because we train the model using historical data containing input features and their actual fare amounts.
+
+4. Which type of problem is this: Classification or Regression?
+
+It is a Regression problem because the output, fare amount, is a continuous numerical value.
+
+5. What is Supervised Learning?
+
+Supervised Learning is a type of Machine Learning in which a model learns from labelled data. It uses input features and their corresponding output values to make predictions.
+
+6. What is the target variable in your project?
+
+fare_amount is the target variable because it is the value we want to predict.
+
+7. What are independent variables?
+
+Independent variables are input features used to predict the target variable.
+
+Examples:
+- Pickup latitude and longitude.
+- Drop-off latitude and longitude.
+- Passenger count.
+- Distance.
+- Hour, day and month.
+8. Which dataset did you use?
+
+I used the Uber Fares Dataset from Kaggle, which contains historical Uber ride information and fare amounts.
+
+9. What is the difference between training and testing data?
+- Training data is used to teach the model.
+- Testing data is used to evaluate how well the trained model performs on unseen data.
+10. Why did you use an 80:20 train-test split?
+
+We used 80% of the data for training and 20% for testing. This provides sufficient data to train the model while keeping separate data for performance evaluation.
+Part 2: Data preprocessing
+11. What is data preprocessing?
+
+Data preprocessing is the process of cleaning and transforming raw data into a suitable format for Machine Learning.
+
+12. Why is preprocessing necessary?
+
+Raw datasets may contain missing values, duplicate records, incorrect data types and invalid values. Preprocessing improves data quality and helps models learn meaningful patterns.
+
+13. What are missing values?
+
+Missing values are data entries that have no value or are represented by NULL or NaN.
+
+14. How did you handle missing values?
+
+I used:
+df.dropna(inplace=True)
+
+
+
+It removes rows containing missing values.
+
+15. What are duplicate records?
+
+Duplicate records are repeated rows in a dataset.
+
+16. How did you remove duplicates?
+df.drop_duplicates(inplace=True)
+
+
+
+It removes repeated rows and keeps one copy.
+
+17. Why did you remove the ID and key columns?
+
+These columns are identifiers and generally do not provide meaningful information for predicting the fare. Keeping them could introduce irrelevant patterns.
+
+18. Why did you convert pickup_datetime into datetime format?
+
+Because initially it may be stored as a string. Converting it into datetime allows us to extract useful information such as hour, day, month and weekday.
+
+19. What is feature extraction?
+
+Feature extraction means creating useful input features from existing data.
+
+For example, from pickup_datetime, we extracted:
+- Hour
+- Day
+- Month
+- Weekday
+20. Why did you extract the hour?
+
+Because ride fares and demand patterns may differ during morning, afternoon, evening and night hours.
+
+21. What is feature engineering?
+
+Feature engineering is the process of creating or transforming features to improve model performance.
+
+In our project, calculating distance using pickup and drop-off coordinates is an example of feature engineering.
+
+22. What is the difference between feature extraction and feature selection?
+- Feature extraction creates new features from existing data.
+- Feature selection chooses the most useful features from available features.
+23. Why did you remove invalid coordinates?
+
+Because geographical coordinates outside the expected study region may represent incorrect entries or locations that are not relevant to the dataset.
+
+24. What is the Haversine formula?
+
+The Haversine formula calculates the great-circle distance between two geographical points using their latitude and longitude.
+
+It is useful for calculating the approximate distance between pickup and drop-off locations.
+
+25. Why did you use 6371 in the Haversine formula?
+
+6371 represents the approximate radius of the Earth in kilometres. It allows us to calculate the distance in kilometres.
+Part 3: Outlier detection
+26. What are outliers?
+
+Outliers are data values that are significantly different from most other observations in a dataset.
+
+For example, if most Uber rides cost between $5 and $30 but one ride costs $500, it may be an outlier.
+
+27. Why do we identify outliers?
+
+Outliers can affect statistical calculations and model performance, especially in regression models that are sensitive to extreme values.
+
+28. Which method did you use to detect outliers?
+
+I used the IQR (Interquartile Range) method.
+
+29. What is IQR?
+
+IQR is the difference between the third quartile (Q3) and first quartile (Q1).
+\[
+IQR=Q3-Q1
+\]
+
+30. What are Q1 and Q3?
+- Q1: 25th percentile. It means 25% of the observations fall below this value.
+- Q3: 75th percentile. It means 75% of the observations fall below this value.
+31. What are the lower and upper limits in IQR?
+\[
+Lower=Q1-1.5\times IQR
+\]
+
+\[
+Upper=Q3+1.5\times IQR
+\]
+
+Values outside these limits are considered potential outliers.
+
+32. What is a Boxplot?
+
+A boxplot is a graphical representation of the distribution of numerical data. It helps identify the median, quartiles, spread and potential outliers.
+
+Does every outlier represent an incorrect value?
+
+No. Some outliers may be genuine observations. We should investigate them before removing them.
+
+34. What is the difference between IQR and Z-score?
+IQR	Z-score
+Based on quartiles	Based on mean and standard deviation
+Less affected by extreme values	More affected by extreme values
+Useful for skewed data	More suitable for approximately normal data
+
+Part 4: Correlation
+35. What is correlation?
+
+Correlation measures the strength and direction of the relationship between two numerical variables.
+
+36. What are the types of correlation?
+
+There are three basic types:
+1. Positive correlation: Both variables increase together.
+2. Negative correlation: One variable increases while the other decreases.
+3. Zero correlation: No linear relationship is observed.
+37. What is the range of correlation?
+
+The correlation coefficient ranges from -1 to +1.
+Value	Meaning
++1	Perfect positive correlation
+-1	Perfect negative correlation
+0	No linear correlation
+
+What is a correlation heatmap?
+
+A correlation heatmap is a graphical representation of correlation values using different colours. It helps identify relationships between numerical features.
+
+Why is distance important in Uber fare prediction?
+
+Generally, a longer journey requires more travel time and resources, so distance is an important factor influencing fare amount.
+
+41. Does correlation mean causation?
+
+No. Correlation only indicates that two variables are related. It does not prove that one variable causes a change in another.
+
+42. What is a correlation matrix?
+
+A correlation matrix is a table that shows correlation coefficients between pairs of numerical variables in a dataset.
+Part 5: Linear Regression
+43. What is Linear Regression?
+
+Linear Regression is a supervised Machine Learning algorithm used to predict continuous numerical values by finding a linear relationship between independent variables and a dependent variable.
+
+44. Why did you use Linear Regression?
+
+I used Linear Regression as a baseline model to understand how different ride features are linearly related to fare amount.
+
+45. What is the equation of Linear Regression?
+
+For one independent variable:
+\[
+y=b_0+b_1x
+\]
+
+For multiple independent variables:
+\[
+y=b_0+b_1x_1+b_2x_2+\cdots+b_nx_n
+\]
+
+Where:
+- y = Predicted fare.
+- b₀ = Intercept.
+- b₁, b₂ = Coefficients.
+- x₁, x₂ = Input features.
+46. What is the intercept?
+
+The intercept is the predicted target value when all independent variables are zero.
+
+47. What is a coefficient?
+
+A coefficient represents the expected change in predicted fare for a one-unit increase in a particular feature, keeping other features constant.
+
+48. What is Multiple Linear Regression?
+
+Multiple Linear Regression uses two or more independent variables to predict one dependent variable.
+
+Our project uses multiple input features, so it is Multiple Linear Regression.
+
+49. What is the difference between Simple and Multiple Linear Regression?
+Simple Linear Regression	Multiple Linear Regression
+Uses one input feature	Uses multiple input features
+One independent variable	Two or more independent variables
+Example: Fare vs distance	Example: Fare vs distance, time and passenger count
+
+50. What are the limitations of Linear Regression?
+- Assumes a linear relationship between features and target.
+- Sensitive to outliers.
+- Can be affected by multicollinearity.
+- May not capture complex non-linear patterns.
+Part 6: Random Forest Regression
+51. What is Random Forest Regression?
+
+Random Forest Regression is a supervised ensemble learning algorithm that combines predictions from multiple decision trees to predict continuous numerical values.
+
+52. Why did you use Random Forest Regression?
+
+I used Random Forest because Uber fare prediction may involve complex and non-linear relationships between distance, location and time. Random Forest can capture such patterns.
+
+53. What is a Decision Tree?
+
+A Decision Tree is a Machine Learning algorithm that makes predictions by splitting data into smaller groups based on feature conditions.
+54. How does Random Forest work?
+1. It selects different random samples from the training dataset.
+2. It builds multiple decision trees.
+3. Each tree makes a prediction.
+4. It combines the predictions by taking their average for regression.
+55. What is Ensemble Learning?
+
+Ensemble Learning is a technique that combines multiple machine learning models to produce a better or more stable prediction.
+
+56. What is n_estimators in Random Forest?
+
+n_estimators specifies the number of decision trees used in the Random Forest model.
+
+In our program:
+n_estimators=100
+
+
+
+It means the model builds 100 decision trees.
+
+57. What is max_depth?
+
+max_depth specifies the maximum depth of each decision tree.
+
+
+
+58. What happens if we increase the number of trees?
+
+Increasing the number of trees can improve prediction stability, but it also increases training time and computational cost. Improvement is not guaranteed.
+
+59. What is overfitting?
+
+Overfitting occurs when a model learns the training data too closely, including noise, and performs poorly on unseen testing data.
+
+60. How can we reduce overfitting in Random Forest?
+- Limit maximum tree depth.
+- Increase minimum samples required for a split.
+- Increase minimum samples per leaf.
+- Use cross-validation.
+- Tune hyperparameters.
+61. What is the difference between Linear Regression and Random Forest Regression?
+Linear Regression	Random Forest Regression
+Linear model	Ensemble of decision trees
+Assumes linear relationships	Captures non-linear relationships
+Easier to interpret	More complex to interpret
+Generally faster to train	Generally more computationally expensive
+Sensitive to outliers	Often more robust to outliers
+
+Part 7: Model evaluation metrics
+62. Why do we evaluate a Machine Learning model?
+
+We evaluate a model to measure how accurately it predicts unseen data and to compare different algorithms.
+
+63. What is R² Score?
+
+R² Score, also called the coefficient of determination, measures how much variation in the target variable is explained by the model.
+\[
+R^2=1-\frac{SS_{res}}{SS_{tot}}
+\]
+
+- 1 = Perfect prediction.
+- 0 = No improvement over predicting the test-set mean.
+- Negative = Worse than predicting the test-set mean.
+64. What is MAE?
+
+MAE stands for Mean Absolute Error. It calculates the average absolute difference between actual and predicted values.
+\[
+MAE=\frac{1}{n}\sum|y-\hat y|
+\]
+
+65. What is MSE?
+
+MSE stands for Mean Squared Error. It calculates the average squared difference between actual and predicted values.
+\[
+MSE=\frac{1}{n}\sum(y-\hat y)^2
+\]
+
+66. What is RMSE?
+
+RMSE stands for Root Mean Squared Error. It is the square root of MSE.
+\[
+RMSE=\sqrt{MSE}
+\]
+
+67. Which evaluation metric is better: MAE or RMSE?
+
+Both are useful.
+- MAE is easier to interpret and less sensitive to large errors.
+- RMSE penalizes larger errors more heavily.
+68. Which R² score is better?
+
+Generally, a higher R² score indicates better model performance on the same test dataset.
+
+69. Which RMSE value is better?
+
+A lower RMSE value indicates that the model's predictions are closer to actual values on average in terms of squared error.
+
+70. Why do we use multiple evaluation metrics?
+
+Because one metric cannot explain every aspect of model performance. Using R², MAE and RMSE provides a more complete understanding.
+
+71. Can R² be negative?
+
+Yes. It means the model performs worse than a baseline that predicts the mean of the actual target values.
+
+72. What is prediction error?
+
+Prediction error is the difference between the actual value and predicted value.
+\[
+Error=Actual-Predicted
+\]
+
+73. Which model performed better in your experiment?
+
+The model with the higher R² score and lower MAE and RMSE performed better on the testing dataset.
+
+You should answer this question using your actual output rather than assuming Random Forest always wins.
